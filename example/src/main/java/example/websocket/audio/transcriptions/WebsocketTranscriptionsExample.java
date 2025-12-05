@@ -2,7 +2,6 @@ package example.websocket.audio.transcriptions;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -10,6 +9,7 @@ import com.coze.openapi.client.audio.common.AudioFormat;
 import com.coze.openapi.client.audio.speech.CreateSpeechReq;
 import com.coze.openapi.client.audio.speech.CreateSpeechResp;
 import com.coze.openapi.client.websocket.event.downstream.*;
+import com.coze.openapi.client.websocket.event.model.AsrConfig;
 import com.coze.openapi.client.websocket.event.model.InputAudio;
 import com.coze.openapi.client.websocket.event.model.TranscriptionsUpdateEventData;
 import com.coze.openapi.service.auth.TokenAuth;
@@ -27,7 +27,6 @@ public class WebsocketTranscriptionsExample {
   public static boolean isDone = false;
 
   private static class CallbackHandler extends WebsocketsAudioTranscriptionsCallbackHandler {
-    private final ByteBuffer buffer = ByteBuffer.allocate(1024 * 1024 * 10); // 分配 10MB 缓冲区
 
     public CallbackHandler() {
       super();
@@ -120,7 +119,15 @@ public class WebsocketTranscriptionsExample {
 
       InputAudio inputAudio =
           InputAudio.builder().sampleRate(24000).codec("pcm").format("wav").channel(2).build();
-      client.transcriptionsUpdate(new TranscriptionsUpdateEventData(inputAudio));
+
+      AsrConfig asrConfig =
+          AsrConfig.builder()
+              .hotWords(Arrays.asList("Coze", "AI"))
+              .context("Real-time transcription")
+              .userLanguage("en-US")
+              .build();
+
+      client.transcriptionsUpdate(new TranscriptionsUpdateEventData(inputAudio, asrConfig));
 
       try (InputStream inputStream = speechResp.getResponse().byteStream()) {
         byte[] buffer = new byte[1024];

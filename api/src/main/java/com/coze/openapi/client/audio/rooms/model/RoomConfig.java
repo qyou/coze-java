@@ -20,6 +20,7 @@ public class RoomConfig {
   }
 
   @JsonProperty("room_mode")
+  @Builder.Default
   private String roomMode = "";
 
   @JsonProperty("translate_config")

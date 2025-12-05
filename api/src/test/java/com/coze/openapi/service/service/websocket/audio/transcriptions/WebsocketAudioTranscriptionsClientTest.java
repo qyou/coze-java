@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import java.util.Arrays;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -15,6 +17,7 @@ import org.mockito.MockitoAnnotations;
 
 import com.coze.openapi.client.websocket.event.EventType;
 import com.coze.openapi.client.websocket.event.downstream.*;
+import com.coze.openapi.client.websocket.event.model.AsrConfig;
 import com.coze.openapi.client.websocket.event.model.InputAudio;
 import com.coze.openapi.client.websocket.event.model.TranscriptionsUpdateEventData;
 
@@ -116,6 +119,68 @@ public class WebsocketAudioTranscriptionsClientTest {
     assertEquals(24000, event.getData().getInputAudio().getSampleRate());
     assertEquals(1, event.getData().getInputAudio().getChannel());
     assertEquals(16, event.getData().getInputAudio().getBitDepth());
+
+    // 验证 asr_config 为 null（向后兼容）
+    assertNull(event.getData().getAsrConfig());
+
+    // 验证 detail
+    assertEquals("20241210152726467C48D89D6DB2F3***", event.getDetail().getLogID());
+  }
+
+  @Test
+  public void testHandleTranscriptionsUpdatedEventWithAsrConfig() {
+    String json =
+        "{\n"
+            + "  \"id\": \"event_id\",\n"
+            + "  \"event_type\": \"transcriptions.updated\",\n"
+            + "  \"data\": {\n"
+            + "      \"input_audio\": {\n"
+            + "          \"format\": \"pcm\",\n"
+            + "          \"codec\": \"pcm\",\n"
+            + "          \"sample_rate\": 24000,\n"
+            + "          \"channel\": 1,\n"
+            + "          \"bit_depth\": 16\n"
+            + "      },\n"
+            + "      \"asr_config\": {\n"
+            + "          \"hot_words\": [\"Coze\", \"AI\"],\n"
+            + "          \"context\": \"Coze AI\",\n"
+            + "          \"user_language\": \"en-US\",\n"
+            + "          \"enable_ddc\": true,\n"
+            + "          \"enable_itn\": true,\n"
+            + "          \"enable_punc\": true\n"
+            + "      }\n"
+            + "  },\n"
+            + "  \"detail\": {\n"
+            + "      \"logid\": \"20241210152726467C48D89D6DB2F3***\"\n"
+            + "  }\n"
+            + "}\n";
+
+    client.handleEvent(mockWebSocket, json);
+
+    verify(mockCallbackHandler)
+        .onTranscriptionsUpdated(eq(client), transcriptionsUpdatedEventCaptor.capture());
+
+    TranscriptionsUpdatedEvent event = transcriptionsUpdatedEventCaptor.getValue();
+    assertEquals(EventType.TRANSCRIPTIONS_UPDATED, event.getEventType());
+    assertEquals("event_id", event.getId());
+
+    // 验证 data
+    assertEquals("pcm", event.getData().getInputAudio().getFormat());
+    assertEquals("pcm", event.getData().getInputAudio().getCodec());
+    assertEquals(24000, event.getData().getInputAudio().getSampleRate());
+    assertEquals(1, event.getData().getInputAudio().getChannel());
+    assertEquals(16, event.getData().getInputAudio().getBitDepth());
+
+    // 验证 asr_config
+    assertNotNull(event.getData().getAsrConfig());
+    assertEquals("en-US", event.getData().getAsrConfig().getUserLanguage());
+    assertEquals("Coze AI", event.getData().getAsrConfig().getContext());
+    assertTrue(event.getData().getAsrConfig().getEnableDdc());
+    assertTrue(event.getData().getAsrConfig().getEnableItn());
+    assertTrue(event.getData().getAsrConfig().getEnablePunc());
+    assertEquals(2, event.getData().getAsrConfig().getHotWords().size());
+    assertTrue(event.getData().getAsrConfig().getHotWords().contains("Coze"));
+    assertTrue(event.getData().getAsrConfig().getHotWords().contains("AI"));
 
     // 验证 detail
     assertEquals("20241210152726467C48D89D6DB2F3***", event.getDetail().getLogID());
@@ -287,7 +352,30 @@ public class WebsocketAudioTranscriptionsClientTest {
                     .channel(1)
                     .bitDepth(16)
                     .build())
+            .asrConfig(
+                AsrConfig.builder()
+                    .hotWords(Arrays.asList("Coze", "AI"))
+                    .context("Real-time transcription")
+                    .userLanguage("en-US")
+                    .build())
             .build();
+
+    client.transcriptionsUpdate(data);
+
+    verify(mockWebSocket).send(anyString()); // 验证发送了消息
+  }
+
+  @Test
+  void testTranscriptionsUpdateWithoutAsrConfig() {
+    TranscriptionsUpdateEventData data =
+        new TranscriptionsUpdateEventData(
+            InputAudio.builder()
+                .format("pcm")
+                .codec("pcm")
+                .sampleRate(24000)
+                .channel(1)
+                .bitDepth(16)
+                .build());
 
     client.transcriptionsUpdate(data);
 

@@ -19,5 +19,18 @@ public class AsrConfig {
   private String context;
 
   @JsonProperty("user_language")
-  private String userLanguage;
+  @Builder.Default
+  private String userLanguage = "common";
+
+  @JsonProperty("enable_ddc")
+  @Builder.Default
+  private Boolean enableDdc = true;
+
+  @JsonProperty("enable_itn")
+  @Builder.Default
+  private Boolean enableItn = true;
+
+  @JsonProperty("enable_punc")
+  @Builder.Default
+  private Boolean enablePunc = true;
 }

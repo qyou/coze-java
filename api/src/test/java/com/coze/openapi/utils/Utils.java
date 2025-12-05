@@ -10,6 +10,8 @@ public class Utils {
   private static final Headers commonHeader =
       Headers.of(
           new HashMap<String, String>() {
+            private static final long serialVersionUID = 1L;
+
             {
               put(LOG_HEADER, TEST_LOG_ID);
             }
